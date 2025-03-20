@@ -254,7 +254,6 @@ def check_and_report():
 
             total_tunnels += len(tunnels)
 
-            # Check for new tunnels and send immediate alerts
             is_first_run = router_name not in previous_tunnels
 
             for tunnel_name, tunnel_info in current_router_tunnels.items():
@@ -267,7 +266,6 @@ def check_and_report():
                         "tunnel": tunnel_info
                     })
 
-                    # Simplified alert message with just router name, IP, and tunnel name
                     safe_tunnel_name = tunnel_info['name'].replace('<', '&lt;').replace('>', '&gt;')
                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     alert_message = f"<b>L2TP tunnel detected:</b>\n"
@@ -276,13 +274,11 @@ def check_and_report():
                     alert_message += f"Tunnel: {safe_tunnel_name}\n"
                     alert_message += f"Time: {current_time}"
 
-                    logging.info(f"L2TP tunnel detected on {router_name}: {tunnel_name}")
+                    logging.info(f"Dynamic L2TP tunnel detected on {router_name}: {tunnel_name}")
                     send_to_telegram(alert_message, alert=True)
 
-        # Update the previous tunnels state
         previous_tunnels = current_tunnels
 
-        # Log a summary
         logging.info(f"Check completed. Total tunnels found: {total_tunnels}, New tunnels: {len(new_tunnels)}")
 
 def signal_handler(signum, frame):
@@ -298,7 +294,6 @@ def run_monitor(daemon_mode=False):
         print(f"L2TP Tunnel Monitor started - checking {len(MIKROTIK_ROUTERS)} routers every {CHECK_INTERVAL} seconds")
         print(f"Logs are being written to: {log_dir}/mikrotik_l2tp_monitor.log")
 
-    # Do the initial check
     check_and_report()
 
     try:
