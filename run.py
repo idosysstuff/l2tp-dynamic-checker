@@ -11,17 +11,7 @@ import signal
 import concurrent.futures
 from datetime import datetime
 from threading import Lock
-import argparse
 from dotenv import load_dotenv
-
-try:
-    from daemon import DaemonContext
-except ImportError:
-    print("Warning: python-daemon package not installed. Daemon mode will not be available.")
-    print("To install, run: pip install python-daemon")
-    class DaemonContext:
-        def __init__(self, **kwargs):
-            raise ImportError("python-daemon package is required for daemon mode")
 
 log_dir = os.path.expanduser('~/logs')
 os.makedirs(log_dir, exist_ok=True)
@@ -234,7 +224,6 @@ def check_and_report():
     with report_lock:
         total_tunnels = 0
         new_tunnels = []
-        closed_tunnels = []
         current_tunnels = {}
 
         all_results.sort(key=lambda x: x["router_name"])
@@ -285,14 +274,13 @@ def signal_handler(signum, frame):
     logging.info(f"Received signal {signum}, shutting down...")
     sys.exit(0)
 
-def run_monitor(daemon_mode=False):
+def run_monitor():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
     logging.info(f"L2TP Tunnel Monitor started - checking {len(MIKROTIK_ROUTERS)} routers every {CHECK_INTERVAL} seconds")
-    if not daemon_mode:
-        print(f"L2TP Tunnel Monitor started - checking {len(MIKROTIK_ROUTERS)} routers every {CHECK_INTERVAL} seconds")
-        print(f"Logs are being written to: {log_dir}/mikrotik_l2tp_monitor.log")
+    print(f"L2TP Tunnel Monitor started - checking {len(MIKROTIK_ROUTERS)} routers every {CHECK_INTERVAL} seconds")
+    print(f"Logs are being written to: {log_dir}/mikrotik_l2tp_monitor.log")
 
     check_and_report()
 
@@ -300,57 +288,12 @@ def run_monitor(daemon_mode=False):
         while True:
             time.sleep(CHECK_INTERVAL)
             check_and_report()
-
-            if not daemon_mode:
-                print(f"Check completed. Next check in {CHECK_INTERVAL} seconds...")
+            print(f"Check completed. Next check in {CHECK_INTERVAL} seconds...")
 
     except Exception as e:
         logging.error(f"Monitor encountered an error: {str(e)}")
-        if not daemon_mode:
-            print(f"Error: {str(e)}")
+        print(f"Error: {str(e)}")
         raise
 
-def main():
-    parser = argparse.ArgumentParser(description='MikroTik L2TP Tunnel Monitor')
-    parser.add_argument('--daemon', action='store_true', help='Run as a daemon process')
-    parser.add_argument('--pid-file', type=str, default='/tmp/mikrotik_monitor.pid',
-                        help='PID file location when running as daemon')
-    parser.add_argument('--stop', action='store_true', help='Stop the running daemon')
-
-    args = parser.parse_args()
-
-    if args.stop:
-        try:
-            with open(args.pid_file, 'r') as f:
-                pid = int(f.read().strip())
-            os.kill(pid, signal.SIGTERM)
-            print(f"Sent termination signal to process {pid}")
-            return
-        except FileNotFoundError:
-            print(f"PID file not found: {args.pid_file}")
-            return
-        except ProcessLookupError:
-            print(f"Process not found. Removing stale PID file.")
-            os.remove(args.pid_file)
-            return
-
-    if args.daemon:
-        print(f"Starting L2TP Tunnel Monitor as daemon. PID file: {args.pid_file}")
-        print(f"Logs will be written to: {log_dir}/mikrotik_l2tp_monitor.log")
-        print(f"To stop the daemon, run: {sys.argv[0]} --stop")
-
-        with DaemonContext(
-            pidfile=args.pid_file,
-            working_directory='/',
-            umask=0o022,
-            signal_map={
-                signal.SIGTERM: signal_handler,
-                signal.SIGINT: signal_handler
-            }
-        ):
-            run_monitor(daemon_mode=True)
-    else:
-        run_monitor(daemon_mode=False)
-
 if __name__ == "__main__":
-    main()
+    run_monitor()
